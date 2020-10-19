@@ -15,39 +15,46 @@ interface Credentials {
 const options: InitOptions = {
   providers: [
     Providers.Credentials({
+      id: "basic-auth",
       name: 'Credentials',
       credentials: {
-        name: { label: "Name", type: "text" },
         email: { label: "Email", type: "text", placeholder: "johndoe@example" },
         password: {  label: "Password", type: "password" }
       },
       authorize: async (credentials) => {
-        const { email, name, password } = credentials as unknown as Credentials
+        const { email, password } = credentials as unknown as Credentials
 
         try {
-          const user = await prisma.user.create({
-            data: {
-              email: email,
-              name: name,
-              password: password
+          const user = await prisma.user.findFirst({
+            where: {
+              email
             }
           })
-          return Promise.resolve(user)
+
+          if (user?.password === password) {
+            return Promise.resolve(user)
+          } else {
+            return Promise.reject(new Error('Email ou senha incorretos, verifique e tente novamente'))
+          }
         } catch(e) {
-          return Promise.resolve(false)
+          return Promise.reject(new Error('Invalid request'))
         }
       }
+    }),
+    Providers.GitHub({
+      clientId: process.env.GITHUB_ID,
+      clientSecret: process.env.GITHUB_SECRET
     })
   ],
   session: {
     jwt: true,
   },
-  jwt: {
-      secret: process.env.APP_SECRET,
-      encryption: true
-  },
   pages: {
-    error: '/error'
+    error: '/'
+  },
+  jwt: {
+    secret: process.env.APP_SECRET,
+    encryption: true
   },
   adapter: Adapters.Prisma.Adapter({ prisma })
 }
